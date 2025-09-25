@@ -9,6 +9,9 @@ import sys
 import time
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()  
 
 def check_requirements():
     """Check if all required packages are installed"""
@@ -39,7 +42,11 @@ def check_env_file():
         "AZURE_OPENAI_ENDPOINT",
         "AZURE_OPENAI_API_KEY",
         "AZURE_OPENAI_MODEL",
-        "AZURE_OPENAI_API_VERSION"
+        "AZURE_OPENAI_API_VERSION",
+        "MCP_TRANSPORT",
+        "MCP_HOST",
+        "MCP_PORT",
+        "MCP_PATH"
     ]
     
     with open(env_file, 'r') as f:
