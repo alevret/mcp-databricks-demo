@@ -5,4 +5,4 @@ mcp
 aiohttp
 databricks-sql-connector
 requests
-fastmcp
+fastmcp==2.10.6
