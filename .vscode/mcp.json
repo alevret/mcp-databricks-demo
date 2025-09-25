@@ -1,0 +1,12 @@
+{
+	"servers": {
+		"my-mcp-server-e96e294d": {
+			"type": "stdio",
+			"command": "python",
+			"args": [
+				"mcp_server.py"
+			]
+		}
+	},
+	"inputs": []
+}
