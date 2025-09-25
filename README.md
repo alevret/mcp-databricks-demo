@@ -6,16 +6,17 @@ A Chainlit-based chat interface that connects Azure OpenAI API with Databricks t
 
 - **Azure OpenAI API**: Valid endpoint, API key, and model deployment
 - **Databricks Workspace**: Active workspace with SQL warehouse configured
-- **Python Environment**: Python 3.8 or higher
+- **Python Environment**: Python 3.11 recommended (matches Docker image)
 - **Network Access**: Connectivity to both Azure OpenAI and Databricks services
 
 ## 🚀 Quick Start
 
 ###  Automated Setup
+git clone <repository-url>
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd mcp_aoai
+cd mcp_databricks_aoai  # adjust if your folder name differs
 
 # Create a virtual environment
 python -m venv .venv
@@ -40,16 +41,23 @@ python start.py
 Create a `.env` file in the project root with the following required variables:
 
 ```env
-# Databricks Configuration
+# Databricks Configuration (required)
 DATABRICKS_HOST="your_databricks_host"
 DATABRICKS_TOKEN="your_access_token"
 DATABRICKS_HTTP_PATH="your_warehouse_http_path"
 
-# Azure OpenAI Configuration
+# Azure OpenAI Configuration (required)
 AZURE_OPENAI_ENDPOINT="your_endpoint_here"
 AZURE_OPENAI_API_KEY="your_api_key_here"
 AZURE_OPENAI_MODEL="your_deployment_name_here"
 AZURE_OPENAI_API_VERSION="2025-04-01-preview"
+
+# MCP Transport (optional / advanced)
+# Leave unset for stdio (local Chainlit). Set to http or sse for remote exposure.
+MCP_TRANSPORT="http"
+MCP_HOST="0.0.0.0"
+MCP_PORT="8000"
+MCP_PATH="/mcp"
 ```
 
 ### Getting Databricks Credentials
@@ -65,12 +73,12 @@ AZURE_OPENAI_API_VERSION="2025-04-01-preview"
 ### Sample Data Setup (Optional)
 To test the application with sample data, you can create a table with building sensor readings:
 
-1. **Create Sample Table**: Execute the SQL commands in `sample.sql` to create a `building_sensor_readings` table with 50 rows of sample data
+1. **Create Sample Table**: Execute the SQL commands in `sample_data/sample.sql` to create a `building_sensor_readings` table with 54 rows of sample data
 2. **Table Structure**: The table includes sensor readings from different floors and rooms with temperature data and timestamps
 3. **Usage**: Perfect for testing queries like temperature analysis, sensor monitoring, and data exploration features
 
 ```sql
--- Execute the contents of sample.sql in your Databricks SQL warehouse
+-- Execute the contents of sample_data/sample.sql in your Databricks SQL warehouse
 -- This creates: default.building_sensor_readings table with sensor data
 ```
 
@@ -222,7 +230,50 @@ Here are practical examples of how to interact with your Databricks environment:
 5. **Response Formatting** → Markdown Tables / Structured Output
 6. **Session Tracking** → Interaction History Storage
 
-## 🔧 Configuration & Customization
+## � Running with Docker (Optional)
+
+A `Dockerfile` is included to run the MCP server in HTTP mode.
+
+Build:
+```bash
+docker build -t mcp-databricks .
+```
+
+Run:
+```bash
+docker run --rm -p 8000:8000 \
+  -e DATABRICKS_HOST="$DATABRICKS_HOST" \
+  -e DATABRICKS_TOKEN="$DATABRICKS_TOKEN" \
+  -e DATABRICKS_HTTP_PATH="$DATABRICKS_HTTP_PATH" \
+  -e AZURE_OPENAI_ENDPOINT="$AZURE_OPENAI_ENDPOINT" \
+  -e AZURE_OPENAI_API_KEY="$AZURE_OPENAI_API_KEY" \
+  -e AZURE_OPENAI_MODEL="$AZURE_OPENAI_MODEL" \
+  -e AZURE_OPENAI_API_VERSION="$AZURE_OPENAI_API_VERSION" \
+  -e MCP_TRANSPORT="http" \
+  -e MCP_HOST="0.0.0.0" \
+  -e MCP_PORT="8000" \
+  -e MCP_PATH="/mcp" \
+  mcp-databricks
+```
+
+Then configure an MCP-capable client (future Chainlit HTTP support or other tooling) to `http://localhost:8000/mcp`.
+
+Stdio mode remains the simplest approach for local Chainlit usage.
+
+## 🔌 MCP Transport Modes
+
+Environment-driven transport selection (falls back to stdio if unset / invalid):
+
+| Variable | Values | Default | Applies To | Notes |
+|----------|--------|---------|------------|-------|
+| MCP_TRANSPORT | stdio, http, sse | stdio | All | Primary transport selector |
+| MCP_HOST | host/IP | 0.0.0.0 | http/sse | Ignored for stdio |
+| MCP_PORT | integer | 8000 | http/sse | Ignored for stdio |
+| MCP_PATH | path | /mcp | http/sse | HTTP base path |
+
+`get_schema` is exposed as an MCP resource (`schema://tables`), while the rest are tools.
+
+## �🔧 Configuration & Customization
 
 ### Chainlit Configuration
 The application supports extensive customization through `config.toml`:
@@ -240,7 +291,7 @@ The `start.py` script includes comprehensive environment checking:
 - **Connection Testing**: Optional connectivity verification
 
 ### MCP Server Configuration
-The `mcp_config.json` file defines the MCP server setup:
+The `mcp_config.json` file defines the MCP server setup (stdio). A `.vscode/mcp.json` is also included for editor integration.
 ```json
 {
   "mcpServers": {
@@ -291,7 +342,7 @@ mcp                     # Model Context Protocol
 aiohttp                 # Async HTTP client
 databricks-sql-connector # Databricks SQL connectivity
 requests                # HTTP requests for REST API
-fastmcp                 # Fast MCP server implementation
+fastmcp==2.10.6         # Fast MCP server implementation (version pinned for reproducibility)
 ```
 
 ### Optional Dependencies
@@ -333,3 +384,14 @@ The project includes integration testing capabilities:
 ---
 
 **Built with ❤️ using Chainlit, Azure OpenAI, and Databricks**
+
+---
+
+### ✅ Recently Updated Documentation
+- Updated sample data path (`sample_data/sample.sql`)
+- Added Docker & transport mode instructions
+- Added optional MCP_* environment variables
+- Corrected folder name in quick start
+- Documented pinned `fastmcp` version
+- Clarified resource vs tool distinction (`get_schema`)
+
