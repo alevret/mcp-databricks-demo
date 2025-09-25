@@ -474,4 +474,17 @@ def get_cluster_info() -> str:
         return error_msg
 
 if __name__ == "__main__":
-    mcp.run()
+
+    transport = os.getenv("MCP_TRANSPORT", "stdio").lower()
+    host = os.getenv("MCP_HOST", "0.0.0.0")
+    port = int(os.getenv("MCP_PORT", "8000"))
+    path = os.getenv("MCP_PATH", "/mcp")
+
+    if transport in ("http", "sse"):
+        # set server configuration before running
+        mcp.settings.host = host
+        mcp.settings.port = port
+        mcp.settings.path = path
+        mcp.run(transport=transport)
+    else:
+        mcp.run()
