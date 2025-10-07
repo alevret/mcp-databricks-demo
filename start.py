@@ -37,16 +37,12 @@ def check_env_file():
     
     required_vars = [
         "DATABRICKS_HOST",
-        "DATABRICKS_TOKEN", 
+        "DATABRICKS_TOKEN",
         "DATABRICKS_HTTP_PATH",
         "AZURE_OPENAI_ENDPOINT",
         "AZURE_OPENAI_API_KEY",
         "AZURE_OPENAI_MODEL",
         "AZURE_OPENAI_API_VERSION",
-        "MCP_TRANSPORT",
-        "MCP_HOST",
-        "MCP_PORT",
-        "MCP_PATH"
     ]
     
     with open(env_file, 'r') as f:
@@ -88,9 +84,16 @@ def start_chainlit():
     print("🚀 Starting Chainlit application...")
     print("📱 Application will be available at: http://localhost:8000")
     print("🔌 MCP server will auto-connect on startup")
-    
+    print("🧩 Using mcp_config.json to register the Databricks MCP server")
+
     subprocess.run([
-        sys.executable, "-m", "chainlit", "run", "app.py"
+        sys.executable,
+        "-m",
+        "chainlit",
+        "run",
+        "app.py",
+        "-m",
+        "mcp_config.json",
     ])
 
 def main():

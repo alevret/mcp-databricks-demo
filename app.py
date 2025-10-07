@@ -3,7 +3,6 @@ from mcp import ClientSession
 from mcp.types import TextContent, ImageContent
 import os
 import re
-from aiohttp import ClientSession
 import chainlit as cl
 from openai import AzureOpenAI, AsyncAzureOpenAI
 import traceback
@@ -209,6 +208,29 @@ class ChatClient:
 def flatten(xss):
     return [x for xs in xss for x in xs]
 
+
+def _build_welcome_message(mcp_tools: dict) -> str:
+    """Create a user-facing welcome message that lists available MCP tools."""
+    available_tools = []
+    for connection_name, tools in mcp_tools.items():
+        for tool in tools:
+            available_tools.append(
+                f"• **{tool['name']}**: {tool['description']}"
+            )
+
+    if not available_tools:
+        return (
+            "Hello! I'm connected to your Databricks workspace, but I'm still gathering the available tools. "
+            "Please hold on for a moment while the MCP server finishes connecting."
+        )
+
+    tool_listing = "\n".join(available_tools)
+    return (
+        "Hello! I'm connected to your Databricks workspace through MCP. Here are the available tools:\n\n"
+        f"{tool_listing}\n\nAsk me anything about your Databricks environment!"
+    )
+
+
 @cl.on_mcp_connect
 async def on_mcp(connection, session: ClientSession):
     """Handle MCP connection and register tools"""
@@ -216,10 +238,10 @@ async def on_mcp(connection, session: ClientSession):
     # Check if this connection is already registered to avoid duplicates
     mcp_tools = cl.user_session.get("mcp_tools", {})
     if connection.name in mcp_tools:
-        print(f"� MCP connection '{connection.name}' already established (skipping duplicate registration)")
+        print(f"🔁 MCP connection '{connection.name}' already established (skipping duplicate registration)")
         return
-    
-    print(f"�🔌 MCP connection established: {connection.name}")
+
+    print(f"🔌 MCP connection established: {connection.name}")
     
     try:
         result = await session.list_tools()
@@ -239,11 +261,22 @@ async def on_mcp(connection, session: ClientSession):
         cl.user_session.set("mcp_tools", mcp_tools)
         
         print(f"🎉 Successfully registered {len(tools)} tools for connection '{connection.name}'")
-        
+
         # Print tool summary for debugging
         tool_names = [tool["name"] for tool in tools]
         print(f"Available tools: {', '.join(tool_names)}")
-        
+
+        # Update the connection status message if we displayed one earlier
+        connection_msg_id = cl.user_session.get("connection_msg_id")
+        if connection_msg_id:
+            await cl.Message(
+                id=connection_msg_id,
+                content=_build_welcome_message(mcp_tools),
+            ).update()
+            cl.user_session.set("connection_msg_id", None)
+        else:
+            await cl.Message(content=_build_welcome_message(mcp_tools)).send()
+
     except Exception as e:
         print(f"❌ Error connecting to MCP server: {e}")
         import traceback
@@ -305,35 +338,27 @@ async def call_tool(mcp_name, function_name, function_args):
 async def start_chat():
     """Initialize chat session"""
     print("🚀 Starting new chat session")
-    
+
     client = ChatClient()
     cl.user_session.set("messages", [])
     cl.user_session.set("system_prompt", SYSTEM_PROMPT)
-    
+
     # Check if MCP tools are available
     mcp_tools = cl.user_session.get("mcp_tools", {})
     if mcp_tools:
         tool_count = sum(len(tools) for tools in mcp_tools.values())
         print(f"📊 {tool_count} MCP tools available in session")
-        
+
         # Send welcome message with available tools
-        available_tools = []
-        for connection_name, tools in mcp_tools.items():
-            for tool in tools:
-                available_tools.append(f"• **{tool['name']}**: {tool['description']}")
-        
-        if available_tools:
-            welcome_msg = f"""Hello! I'm connected to your Databricks workspace through MCP. Here are the available tools:
-
-{chr(10).join(available_tools)}
-
-Ask me anything about your Databricks environment!"""
-            
-            await cl.Message(content=welcome_msg).send()
+        await cl.Message(content=_build_welcome_message(mcp_tools)).send()
     else:
-        print("⚠️ No MCP tools found in session")
-        await cl.Message(content="Hello! I'm ready to help, but it looks like the MCP server isn't connected yet. Please make sure the Databricks MCP server is running.").send()
-    
+        print("⏳ MCP tools not yet registered; waiting for connection")
+        connecting_msg = cl.Message(
+            content="🔄 Connecting to the Databricks MCP server. I'll be ready in just a moment..."
+        )
+        await connecting_msg.send()
+        cl.user_session.set("connection_msg_id", connecting_msg.id)
+
 @cl.on_message
 async def on_message(message: cl.Message):
     """Handle incoming messages and process with MCP tools"""
