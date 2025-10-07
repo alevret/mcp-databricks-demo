@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 # Create and configure .env file (see configuration section)
 
-# Then run the automated startup
+# Then run the automated startup (auto-connects the MCP server)
 python start.py
 ```
 
@@ -135,13 +135,13 @@ python start.py
 ### Manual Connection (Alternative)
 If using `chainlit run app.py` directly:
 
-1. **Start Application**: `chainlit run app.py`
+1. **Start Application**: `chainlit run app.py -m mcp_config.json`
 2. **Connect MCP Server**:
    - Click "MCP Servers" button in the Chainlit interface
    - Click "Connect an MCP"
    - Enter configuration:
      - **Name**: `databricks`
-     - **Type**: `stdio`  
+     - **Type**: `stdio`
      - **Command**: `python mcp_server.py`
    - Click "Confirm"
 3. **Verify Connection**: Look for welcome message listing 8 available tools
